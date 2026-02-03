@@ -54,4 +54,9 @@ Initial release
 - Option to interpret `\n` in repleace field to insert line-break accordingly
 - Option to pre-fill the find-field with the selected word or phrase
 - Used regex-modifier flags are shown in the dialog
+
+### 1.3.0
+- **Live Find Preview**: Matches are now highlighted in real-time as you type, similar to native find functionality.
+- **Find in Selection**: Highlighting respects the "Selection Only" toggle, showing only matches within the selected text.
+
  

@@ -2,14 +2,18 @@ import {
 	App,
 	ButtonComponent,
 	Editor,
-	Modal,
 	Notice,
 	Plugin,
 	TextComponent,
 	ToggleComponent,
 	PluginSettingTab,
-	Setting
+	Setting,
+	MarkdownView,
+	EditorPosition
 } from 'obsidian';
+import { StateEffect, StateField, Extension, RangeSetBuilder } from '@codemirror/state';
+import { EditorView, Decoration, DecorationSet } from '@codemirror/view';
+import { SearchQuery, SearchCursor } from '@codemirror/search';
 
 interface RfrPluginSettings {
 	findText: string;
@@ -35,8 +39,69 @@ const DEFAULT_SETTINGS: RfrPluginSettings = {
 
 // logThreshold: 0 ... only error messages
 //               9 ... verbose output
+// logThreshold: 0 ... only error messages
+//               9 ... verbose output
 const logThreshold = 9;
 const logger = (logString: string, logLevel=0): void => {if (logLevel <= logThreshold) console.log ('RegexFiRe: ' + logString)};
+
+// Define StateEffect for updating the highlight pattern with SearchQuery config
+const setHighlightEffect = StateEffect.define<{ query: SearchQuery | null, range: {from: number, to: number} | null }>();
+
+interface HighlightState {
+	decorations: DecorationSet;
+	query: SearchQuery | null;
+	range: {from: number, to: number} | null;
+}
+
+// Define StateField for managing decorations
+const highlightField = StateField.define<HighlightState>({
+	create() { 
+		return { decorations: Decoration.none, query: null, range: null }; 
+	},
+	update(value, tr) {
+		let { decorations, query, range } = value;
+		
+		// 1. Handle effects (new search query)
+		let hasNewQuery = false;
+		for (let e of tr.effects) {
+			if (e.is(setHighlightEffect)) {
+				query = e.value.query;
+				range = e.value.range;
+				hasNewQuery = true;
+			}
+		}
+
+		// 2. Map existing decorations
+		decorations = decorations.map(tr.changes);
+
+		// 3. Re-calculate if query changed OR document changed
+		if (hasNewQuery || (tr.docChanged && query)) {
+			const builder = new RangeSetBuilder<Decoration>();
+			if (query) {
+				try {
+					const cursor = query.getCursor(tr.state);
+					let item = cursor.next();
+					while (!item.done) {
+						const { from, to } = item.value;
+						// If selection restricted, check bounds
+						if (range && (from < range.from || to > range.to)) {
+							item = cursor.next();
+							continue;
+						}
+						builder.add(from, to, Decoration.mark({ class: 'rfr-match-highlight' }));
+						item = cursor.next();
+					}
+				} catch (err) {
+					// console.error("Regex preview error", err);
+				}
+			}
+			decorations = builder.finish();
+		}
+
+		return { decorations, query, range };
+	},
+	provide: (f) => EditorView.decorations.from(f, val => val.decorations),
+});
 
 export default class RegexFindReplacePlugin extends Plugin {
 	settings: RfrPluginSettings;
@@ -44,6 +109,8 @@ export default class RegexFindReplacePlugin extends Plugin {
 	async onload() {
 		logger('Loading Plugin...', 9);
 		await this.loadSettings();
+		
+		this.registerEditorExtension(highlightField);
 
 		this.addSettingTab(new RegexFindReplaceSettingTab(this.app, this));
 
@@ -52,7 +119,10 @@ export default class RegexFindReplacePlugin extends Plugin {
 			id: 'obsidian-regex-replace',
 			name: 'Find and Replace using regular expressions',
 			editorCallback: (editor) => {
-				new FindAndReplaceModal(this.app, editor, this.settings, this).open();
+				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+				if (view) {
+					new FindAndReplaceBar(this.app, view, this.settings, this).show();
+				}
 			},
 		});
 	}
@@ -77,235 +147,303 @@ export default class RegexFindReplacePlugin extends Plugin {
 
 }
 
-class FindAndReplaceModal extends Modal {
-	constructor(app: App, editor: Editor, settings: RfrPluginSettings, plugin: Plugin) {
-		super(app);
-		this.editor = editor;
+class FindAndReplaceBar {
+	app: App;
+	view: MarkdownView;
+	settings: RfrPluginSettings;
+	plugin: Plugin;
+	containerEl: HTMLElement;
+	findInput: HTMLInputElement;
+	replaceInput: HTMLInputElement;
+
+	constructor(app: App, view: MarkdownView, settings: RfrPluginSettings, plugin: Plugin) {
+		this.app = app;
+		this.view = view;
 		this.settings = settings;
 		this.plugin = plugin;
 	}
 
-	settings: RfrPluginSettings;
-	editor: Editor;
-	plugin: Plugin;
+	show() {
+		// Remove existing search bar if present
+		this.hide();
 
-	onOpen() {
-		const { contentEl, titleEl, editor, modalEl } = this;
-
-		modalEl.addClass('find-replace-modal');
-		titleEl.setText('Regex Find/Replace');
-
-		const rowClass = 'row';
-		const divClass = 'div';
+		const editor = this.view.editor;
 		const noSelection = editor.getSelection() === '';
 		let regexFlags = 'gm';
 		if (this.settings.caseInsensitive) regexFlags = regexFlags.concat('i');
 
-		logger('No text selected?: ' + noSelection, 9);
+		// Create container
+		this.containerEl = document.createElement('div');
+		this.containerEl.addClass('regex-find-replace-bar');
 
-		const addTextComponent = (label: string, placeholder: string, postfix=''): [TextComponent, HTMLDivElement] => {
-			const containerEl = document.createElement(divClass);
-			containerEl.addClass(rowClass);
+		// Create main row
+		const mainRow = document.createElement('div');
+		mainRow.addClass('search-input-container');
 
-			const targetEl = document.createElement(divClass);
-			targetEl.addClass('input-wrapper');
-
-			const labelEl = document.createElement(divClass);
-			labelEl.addClass('input-label');
-			labelEl.setText(label);
-
-			const labelEl2 = document.createElement(divClass);
-			labelEl2.addClass('postfix-label');
-			labelEl2.setText(postfix);
-
-			containerEl.appendChild(labelEl);
-			containerEl.appendChild(targetEl);
-			containerEl.appendChild(labelEl2);
-
-			const component = new TextComponent(targetEl);
-			component.setPlaceholder(placeholder);
-
-			contentEl.append(containerEl);
-			return [component, labelEl2];
-		};
-
-		const addToggleComponent = (label: string, tooltip: string, hide = false): ToggleComponent => {
-			const containerEl = document.createElement(divClass);
-			containerEl.addClass(rowClass);
-	
-			const targetEl = document.createElement(divClass);
-			targetEl.addClass(rowClass);
-
-			const component = new ToggleComponent(targetEl);
-			component.setTooltip(tooltip);
-	
-			const labelEl = document.createElement(divClass);
-			labelEl.addClass('check-label');
-			labelEl.setText(label);
-	
-			containerEl.appendChild(labelEl);
-			containerEl.appendChild(targetEl);
-			if (!hide) contentEl.appendChild(containerEl);
-			return component;
-		};
-
-		// Create input fields
-		const findRow = addTextComponent('Find:', 'e.g. (.*)', '/' + regexFlags);
-		const findInputComponent = findRow[0];
-		const findRegexFlags = findRow[1];
-		const replaceRow = addTextComponent('Replace:', 'e.g. $1', this.settings.processLineBreak ? '\\n=LF' : '');
-		const replaceWithInputComponent = replaceRow[0];
-
-		// Create and show regular expression toggle switch
-		const regToggleComponent = addToggleComponent('Use regular expressions', 'If enabled, regular expressions in the find field are processed as such, and regex groups might be addressed in the replace field');
+		// Find input
+		const findWrapper = document.createElement('div');
+		findWrapper.addClass('search-input-wrapper');
+		this.findInput = document.createElement('input');
+		this.findInput.type = 'text';
+		this.findInput.placeholder = 'Find (regex)...';
+		this.findInput.addClass('search-input');
 		
-		// Update regex-flags label if regular expressions are enabled or disabled
-		regToggleComponent.onChange( regNew => {
-			if (regNew) {
-				findRegexFlags.setText('/' + regexFlags);
-			}
-			else {
-				findRegexFlags.setText('');
-			}
-		})
-
-		// Create and show selection toggle switch only if any text is selected
-		const selToggleComponent = addToggleComponent('Replace only in selection', 'If enabled, replaces only occurances in the currently selected text', noSelection);
-
-		// Create Buttons
-		const buttonContainerEl = document.createElement(divClass);
-		buttonContainerEl.addClass(rowClass);
-
-		const submitButtonTarget = document.createElement(divClass);
-		submitButtonTarget.addClass('button-wrapper');
-		submitButtonTarget.addClass(rowClass);
-
-		const cancelButtonTarget = document.createElement(divClass);
-		cancelButtonTarget.addClass('button-wrapper');
-		cancelButtonTarget.addClass(rowClass);
-
-		const submitButtonComponent = new ButtonComponent(submitButtonTarget);
-		const cancelButtonComponent = new ButtonComponent(cancelButtonTarget);
-		
-		cancelButtonComponent.setButtonText('Cancel');
-		cancelButtonComponent.onClick(() => {
-			logger('Action cancelled.', 8);
-			this.close();
-		});
-
-		submitButtonComponent.setButtonText('Replace All');
-		submitButtonComponent.setCta();
-		submitButtonComponent.onClick(() => {
-			let resultString = 'No match';
-			let scope = '';
-			const searchString = findInputComponent.getValue();
-			let replaceString = replaceWithInputComponent.getValue();
-			const selectedText = editor.getSelection();
-
-			if (searchString === '') {
-				new Notice('Nothing to search for!');
-				return;
-			}
-
-			// Replace line breaks in find-field if option is enabled
-			if (this.settings.processLineBreak) {
-				logger('Replacing linebreaks in replace-field', 9);
-				logger('  old: ' + replaceString, 9);
-				replaceString = replaceString.replace(/\\n/gm, '\n');
-				logger('  new: ' + replaceString, 9);
-			}
-
-			// Replace line breaks in find-field if option is enabled
-			if (this.settings.processTab) {
-				logger('Replacing tabs in replace-field', 9);
-				logger('  old: ' + replaceString, 9);
-				replaceString = replaceString.replace(/\\t/gm, '\t');
-				logger('  new: ' + replaceString, 9);
-			}
-
-			// Check if regular expressions should be used
-			if(regToggleComponent.getValue()) {
-				logger('USING regex with flags: ' + regexFlags, 8);
-
-				const searchRegex = new RegExp(searchString, regexFlags);
-				if(!selToggleComponent.getValue()) {
-					logger('   SCOPE: Full document', 9);
-					const documentText = editor.getValue();
-					const rresult = documentText.match(searchRegex);
-					if (rresult) {
-						editor.setValue(documentText.replace(searchRegex, replaceString));
-						resultString = `Made ${rresult.length} replacement(s) in document`;			
-					}
-				}
-				else {
-					logger('   SCOPE: Selection', 9);
-					const rresult = selectedText.match(searchRegex);
-					if (rresult) {
-						editor.replaceSelection(selectedText.replace(searchRegex, replaceString));	
-						resultString = `Made ${rresult.length} replacement(s) in selection`;
-					}
-				}
-			}
-			else {
-				logger('NOT using regex', 8);
-				let nrOfHits = 0;
-				if(!selToggleComponent.getValue()) {
-					logger('   SCOPE: Full document', 9);
-					scope = 'selection'
-					const documentText = editor.getValue();
-					const documentSplit = documentText.split(searchString);
-					nrOfHits = documentSplit.length - 1;
-					editor.setValue(documentSplit.join(replaceString));
-				}
-				else {
-					logger('   SCOPE: Selection', 9);
-					scope = 'document';
-					const selectedSplit = selectedText.split(searchString);
-					nrOfHits = selectedSplit.length - 1;
-					editor.replaceSelection(selectedSplit.join(replaceString));
-				}
-				resultString = `Made ${nrOfHits} replacement(s) in ${scope}`;
-			} 		
-			
-			// Saving settings (find/replace text and toggle switch states)
-			this.settings.findText = searchString;
-			this.settings.replaceText = replaceString;
-			this.settings.useRegEx = regToggleComponent.getValue();
-			this.settings.selOnly = selToggleComponent.getValue();
-			this.plugin.saveData(this.settings);
-
-			this.close();
-			new Notice(resultString);					
-		});
-
-		// Apply settings
-		regToggleComponent.setValue(this.settings.useRegEx);
-		selToggleComponent.setValue(this.settings.selOnly);
-		replaceWithInputComponent.setValue(this.settings.replaceText);
-		
-		// Check if the prefill find option is enabled and the selection does not contain linebreaks
+		// Prefill find field if enabled
 		if (this.settings.prefillFind && editor.getSelection().indexOf('\n') < 0 && !noSelection) {
-			logger('Found selection without linebreaks and option is enabled -> fill',9);
-			findInputComponent.setValue(editor.getSelection());
-			selToggleComponent.setValue(false);
+			this.findInput.value = editor.getSelection();
+		} else {
+			this.findInput.value = this.settings.findText;
 		}
-		else {
-			logger('Restore find text', 9);
-			findInputComponent.setValue(this.settings.findText);
-		}
-		
-		// Add button row to dialog
-		buttonContainerEl.appendChild(submitButtonTarget);
-		buttonContainerEl.appendChild(cancelButtonTarget);
-		contentEl.appendChild(buttonContainerEl);
 
-		// If no text is selected, disable selection-toggle-switch
-		if (noSelection) selToggleComponent.setValue(false);
+		// Update preview on input
+		this.findInput.addEventListener('input', () => {
+			this.updatePreview();
+		});
+		
+		findWrapper.appendChild(this.findInput);
+
+		// Replace input
+		const replaceWrapper = document.createElement('div');
+		replaceWrapper.addClass('search-input-wrapper');
+		this.replaceInput = document.createElement('input');
+		this.replaceInput.type = 'text';
+		this.replaceInput.placeholder = 'Replace...';
+		this.replaceInput.addClass('search-input');
+		this.replaceInput.value = this.settings.replaceText;
+		replaceWrapper.appendChild(this.replaceInput);
+
+		// Buttons container
+		const buttonsContainer = document.createElement('div');
+		buttonsContainer.addClass('search-buttons-container');
+
+		// Use RegEx toggle
+		const regexToggle = document.createElement('button');
+		regexToggle.addClass('clickable-icon');
+		regexToggle.addClass('search-icon-button');
+		regexToggle.setAttribute('aria-label', 'Use Regular Expression');
+		regexToggle.innerHTML = '.*';
+		if (this.settings.useRegEx) regexToggle.addClass('is-active');
+		regexToggle.onclick = () => {
+			this.settings.useRegEx = !this.settings.useRegEx;
+			regexToggle.toggleClass('is-active', this.settings.useRegEx);
+			this.updatePreview();
+		};
+
+		// Case sensitive toggle
+		const caseToggle = document.createElement('button');
+		caseToggle.addClass('clickable-icon');
+		caseToggle.addClass('search-icon-button');
+		caseToggle.setAttribute('aria-label', 'Match Case');
+		caseToggle.innerHTML = 'Aa';
+		if (!this.settings.caseInsensitive) caseToggle.addClass('is-active');
+		caseToggle.onclick = () => {
+			this.settings.caseInsensitive = !this.settings.caseInsensitive;
+			caseToggle.toggleClass('is-active', !this.settings.caseInsensitive);
+			this.updatePreview();
+		};
+
+		// Selection only toggle
+		const selToggle = document.createElement('button');
+		selToggle.addClass('clickable-icon');
+		selToggle.addClass('search-icon-button');
+		selToggle.setAttribute('aria-label', 'In Selection');
+		selToggle.innerHTML = '⊏⊐';
+		if (this.settings.selOnly && !noSelection) selToggle.addClass('is-active');
+		if (noSelection) selToggle.disabled = true;
+		selToggle.onclick = () => {
+			this.settings.selOnly = !this.settings.selOnly;
+			selToggle.toggleClass('is-active', this.settings.selOnly);
+			this.updatePreview();
+		};
+
+		// Replace All button
+		const replaceAllBtn = document.createElement('button');
+		replaceAllBtn.addClass('mod-cta');
+		replaceAllBtn.textContent = 'Replace All';
+		replaceAllBtn.onclick = () => this.replaceAll();
+
+		// Close button
+		const closeBtn = document.createElement('button');
+		closeBtn.addClass('clickable-icon');
+		closeBtn.addClass('search-icon-button');
+		closeBtn.setAttribute('aria-label', 'Close');
+		closeBtn.innerHTML = '×';
+		closeBtn.onclick = () => this.hide();
+
+		// Assemble buttons
+		buttonsContainer.appendChild(regexToggle);
+		buttonsContainer.appendChild(caseToggle);
+		buttonsContainer.appendChild(selToggle);
+		buttonsContainer.appendChild(replaceAllBtn);
+		buttonsContainer.appendChild(closeBtn);
+
+		// Assemble main row
+		mainRow.appendChild(findWrapper);
+		mainRow.appendChild(replaceWrapper);
+		mainRow.appendChild(buttonsContainer);
+
+		this.containerEl.appendChild(mainRow);
+
+		// Insert at top of editor
+		const contentEl = this.view.contentEl;
+		const editorEl = contentEl.querySelector('.cm-editor');
+		if (editorEl && editorEl.parentElement) {
+			editorEl.parentElement.insertBefore(this.containerEl, editorEl);
+		}
+
+		// Focus find input
+		this.findInput.focus();
+		this.findInput.select();
+
+		// Trigger initial preview
+		this.updatePreview();
+	}
+
+	hide() {
+		// Clear preview
+		this.clearPreview();
+
+		const existing = this.view.contentEl.querySelector('.regex-find-replace-bar');
+		if (existing) {
+			existing.remove();
+		}
 	}
 	
-	onClose() {
-		const { contentEl } = this;
-		contentEl.empty();
+	private getEditorView(): EditorView | null {
+		// @ts-ignore - access internal CM instance
+		return (this.view.editor as any).cm as EditorView;
+	}
+
+	clearPreview() {
+		const cm = this.getEditorView();
+		if (cm) {
+			cm.dispatch({ effects: setHighlightEffect.of({ query: null, range: null }) });
+		}
+	}
+
+	updatePreview() {
+		const cm = this.getEditorView();
+		if (!cm) return;
+
+		const searchString = this.findInput.value;
+		if (!searchString) {
+			this.clearPreview();
+			return;
+		}
+
+		let query: SearchQuery | null = null;
+		
+		try {
+			// Using SearchQuery from @codemirror/search handles regex construction robustly
+			query = new SearchQuery({
+				search: searchString,
+				regexp: this.settings.useRegEx,
+				caseSensitive: !this.settings.caseInsensitive
+			});
+		} catch (e) {
+			// Invalid regex
+			query = null;
+		}
+
+		let range: {from: number, to: number} | null = null;
+		if (this.settings.selOnly) {
+			const editor = this.view.editor;
+			// Get the first selection range
+			const selections = editor.listSelections();
+			if (selections && selections.length > 0) {
+				const sel = selections[0];
+				
+				// Standardize standard Obsidian {line, ch} to offset
+				const startPos = sel.anchor.line < sel.head.line || (sel.anchor.line === sel.head.line && sel.anchor.ch < sel.head.ch) 
+					? sel.anchor 
+					: sel.head;
+				const endPos = sel.anchor.line < sel.head.line || (sel.anchor.line === sel.head.line && sel.anchor.ch < sel.head.ch)
+					? sel.head 
+					: sel.anchor;
+					
+				const from = editor.posToOffset(startPos);
+				const to = editor.posToOffset(endPos);
+				range = { from, to };
+			}
+		}
+
+		cm.dispatch({ effects: setHighlightEffect.of({ query, range }) });
+	}
+
+	replaceAll() {
+		const editor = this.view.editor;
+		const searchString = this.findInput.value;
+		let replaceString = this.replaceInput.value;
+		const selectedText = editor.getSelection();
+		const noSelection = selectedText === '';
+
+		if (searchString === '') {
+			new Notice('Nothing to search for!');
+			return;
+		}
+
+		// Process line breaks if enabled
+		if (this.settings.processLineBreak) {
+			logger('Replacing linebreaks in replace-field', 9);
+			replaceString = replaceString.replace(/\\n/gm, '\n');
+		}
+
+		// Process tabs if enabled
+		if (this.settings.processTab) {
+			logger('Replacing tabs in replace-field', 9);
+			replaceString = replaceString.replace(/\\t/gm, '\t');
+		}
+
+		let resultString = 'No match';
+		let regexFlags = 'gm';
+		if (this.settings.caseInsensitive) regexFlags += 'i';
+
+		// Check if regular expressions should be used
+		if (this.settings.useRegEx) {
+			logger('USING regex with flags: ' + regexFlags, 8);
+
+			const searchRegex = new RegExp(searchString, regexFlags);
+			if (!this.settings.selOnly || noSelection) {
+				logger('   SCOPE: Full document', 9);
+				const documentText = editor.getValue();
+				const rresult = documentText.match(searchRegex);
+				if (rresult) {
+					editor.setValue(documentText.replace(searchRegex, replaceString));
+					resultString = `Made ${rresult.length} replacement(s) in document`;
+				}
+			} else {
+				logger('   SCOPE: Selection', 9);
+				const rresult = selectedText.match(searchRegex);
+				if (rresult) {
+					editor.replaceSelection(selectedText.replace(searchRegex, replaceString));
+					resultString = `Made ${rresult.length} replacement(s) in selection`;
+				}
+			}
+		} else {
+			logger('NOT using regex', 8);
+			let nrOfHits = 0;
+			if (!this.settings.selOnly || noSelection) {
+				logger('   SCOPE: Full document', 9);
+				const documentText = editor.getValue();
+				const documentSplit = documentText.split(searchString);
+				nrOfHits = documentSplit.length - 1;
+				editor.setValue(documentSplit.join(replaceString));
+				resultString = `Made ${nrOfHits} replacement(s) in document`;
+			} else {
+				logger('   SCOPE: Selection', 9);
+				const selectedSplit = selectedText.split(searchString);
+				nrOfHits = selectedSplit.length - 1;
+				editor.replaceSelection(selectedSplit.join(replaceString));
+				resultString = `Made ${nrOfHits} replacement(s) in selection`;
+			}
+		}
+
+		// Save settings
+		this.settings.findText = searchString;
+		this.settings.replaceText = replaceString;
+		this.plugin.saveData(this.settings);
+
+		new Notice(resultString);
 	}
 }
 

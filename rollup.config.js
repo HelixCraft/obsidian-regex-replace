@@ -20,6 +20,6 @@ export default {
 		exports: "default",
 		banner,
 	},
-	external: ["obsidian"],
+	external: ["obsidian", "electron", "@codemirror/autocomplete", "@codemirror/closebrackets", "@codemirror/collab", "@codemirror/commands", "@codemirror/comment", "@codemirror/fold", "@codemirror/gutter", "@codemirror/highlight", "@codemirror/history", "@codemirror/language", "@codemirror/lint", "@codemirror/matchbrackets", "@codemirror/panel", "@codemirror/rangeset", "@codemirror/rectangular-selection", "@codemirror/search", "@codemirror/state", "@codemirror/stream-parser", "@codemirror/text", "@codemirror/tooltip", "@codemirror/view"],
 	plugins: [typescript(), nodeResolve({ browser: true }), commonjs()],
 };
