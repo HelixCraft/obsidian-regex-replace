@@ -1,17 +1,16 @@
-# npm
-node_modules
+
+# NPM
+node_modules/
 package-lock.json
-*.js
 
-# vscode
-.vscode
-
-# Intellij
-*.iml
-.idea
-
-# Exclude sourcemaps
-*.map
-
-# Obsidian saved settings
+# Obsidian
+.obsidian/
 data.json
+*.tsbuildinfo
+
+# System
+.DS_Store
+
+# Build Artifacts (Recommended to exclude, but some prefer to track them)
+# main.js
+# styles.css

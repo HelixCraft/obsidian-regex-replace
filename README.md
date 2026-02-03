@@ -28,7 +28,7 @@ Unlike the built-in search, this plugin offers **Live Preview** highlighting, ro
 
 ## 🚀 Installation
 
-### Community Plugins (Coming Soon)
+### Community Plugins
 1. Open **Settings** > **Community Plugins**.
 2. Turn off **Restricted Mode**.
 3. Click **Browse** and search for `Regex Find/Replace`.
@@ -60,16 +60,6 @@ Unlike the built-in search, this plugin offers **Live Preview** highlighting, ro
 - **Prefill Find Field**: Auto-copy selected text to the find box when opening the dialog.
 - **Case Insensitive**: Default state for the case sensitivity toggle.
 
-## 🤝 Contributing
-
-Contributions are welcome!
-
-1. Fork the project.
-2. Create your feature branch: `git checkout -b feature/AmazingFeature`.
-3. Commit your changes: `git commit -m 'Add some AmazingFeature'`.
-4. Push to the branch: `git push origin feature/AmazingFeature`.
-5. Open a Pull Request.
-
 ## 📄 License
 
 Distributed under the MIT License. See `LICENSE` for more information.
@@ -77,4 +67,3 @@ Distributed under the MIT License. See `LICENSE` for more information.
 ---
 
 **Maintained by [HelixCraft](https://github.com/HelixCraft)**.  
-*Original plugin by Martin Eder.*
