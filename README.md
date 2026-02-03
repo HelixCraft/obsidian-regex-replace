@@ -5,7 +5,7 @@
 
 **Regex Find/Replace** is a powerful plugin for Obsidian that brings full Regular Expression (Regex) support to your find and replace operations. It features a modern **Live Preview** that highlights matches in real-time as you type, giving you visual feedback similar to native editors.
 
-<img width="1674" height="431" alt="Regex Find/Replace Preview" src="https://github.com/user-attachments/assets/ff14e5b9-1d4f-4e35-8584-ac09a7e62c25" />
+<img width="1496" height="531" alt="grafik" src="https://github.com/user-attachments/assets/df84a1e5-51f8-4c75-bfe7-ebaa7acb8c61" />
 
 ## ✨ Features
 
