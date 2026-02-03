@@ -1,62 +1,80 @@
-![release](https://img.shields.io/github/v/release/Gru80/obsidian-regex-replace)
-![downloads](https://img.shields.io/github/downloads/Gru80/obsidian-regex-replace/total.svg)
+# Obsidian Regex Find/Replace
 
-# Obsidian Plugin - Regex Find/Replace
-Provides a dialog to find and replace text in the currently opened note.
-In addition to Obsidians on-board find/repace function, this plugin provides options to
-- use regular expressions or just plain text
-- replace found occurances in the currently slected text or in the whole document
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/HelixCraft/obsidian-regex-replace)
+![GitHub downloads](https://img.shields.io/github/downloads/HelixCraft/obsidian-regex-replace/total)
 
-Desktop as well as mobile versions of Obsidian are supported.
+**Regex Find/Replace** is a powerful plugin for Obsidian that enhances your editing workflow by bringing full Regular Expression (Regex) support to find and replace operations. 
 
-![Regex FindReplace Dialog](res/dialog.png)
+Unlike the built-in search, this plugin offers **Live Preview** highlighting, robust Regex support, and targeted scope control (entire document vs. selection).
 
-## How to use
-- Run `Regex Find/Replace: Find and Replace using regular expressions` from the command palette or
-- Assign a shortcut key to this command and use it to open the dialog
-- The plugin will remember the last recent search/replace terms as well as the settings
+![Regex Find/Replace Preview](res/dialog.png)
+*(Note: Screenshot may show older version, updated visuals feature native-like highlighting)*
 
-## How to install
-### From inside Obsidian
-This plugin can be installed via the `Community Plugins` tab in the Obsidian Settings dialog:
-- Disable Safe Mode (to enable community plugins to be installed)
-- Browse the community plugins searching for "regex find/replace"
-- Install the Plugin
-- Enable the plugin after installation
+## ✨ Features
 
-### Manual installation
-The plugin can also be installed manually from the repository:
-- Create a new directory in your vaults plugins directory, e.g.   
-   `.obsidian/plugins/obsidian-regex-replace`
+- **Regex Support**: Use the full power of Javascript Regular Expressions to find and manipulate text.
+- **Live Find Preview**: Matches are highlighted in real-time as you type your pattern, using a distinct "box" style similar to native find or Sublime Text.
+- **Scope Control**: 
+  - **Document**: Replace matches across the entire note.
+  - **Selection**: Limit find and replace operations to just your current text selection.
+- **Flexible Replacements**:
+  - Use `\n` to insert newlines.
+  - Use `\t` for tabs.
+  - Use regex capture groups (e.g., `$1`, `$2`) in your replacement text to move data around.
+- **Quality of Life**:
+  - **Case Insensitivity**: Toggle case-insensitive matching (`/i` flag).
+  - **Pre-fill**: Option to automatically fill the "Find" field with your currently selected text.
+  - **Dark/Light Mode**: Fully theme-aware UI.
 
-- Head over to https://github.com/Gru80/obsidian-regex-replace/releases
+## 🚀 Installation
 
-- From the latest release, download the files
-   - main.js
-   - manifest.json
-   - styles.css
+### Community Plugins (Coming Soon)
+1. Open **Settings** > **Community Plugins**.
+2. Turn off **Restricted Mode**.
+3. Click **Browse** and search for `Regex Find/Replace`.
+4. Click **Install** and then **Enable**.
 
-  to your newly created plugin directory
-- Launch Obsidian and open the Settings dialog
-- Disable Safe Mode in the `Community Plugins` tab (this enables community plugins to be enabled)
-- Enable the new plugin
+### Manual Installation
+1. Go to the [Releases](https://github.com/HelixCraft/obsidian-regex-replace/releases) page.
+2. Download `main.js`, `manifest.json`, and `styles.css` from the latest release.
+3. Create a folder named `obsidian-regex-replace` in your vault's plugin directory: `.obsidian/plugins/`.
+4. Move the downloaded files into that folder.
+5. In Obsidian, go to **Settings** > **Community Plugins** and reload the plugin list.
+6. Enable **Regex Find/Replace**.
 
-## Version History
-### 1.0.0
-Initial release
+## 🛠 Usage
 
-### 1.1.0
-- Case insensitive search can now be enabled in the settings panel of the plugin (regex flag /i)
-- Find-in-selection toggle switch is disabled if no text is selected in the note
-- Performance improvements and bug-fixes
+1. Open the dialog via the Command Palette: `Regex Find/Replace: Find and Replace using regular expressions`.
+   - *Pro-tip: Assign a hotkey (like `Ctrl+Alt+F`) to this command for quick access.*
+2. **Find**: Enter your Regex pattern or plain text. Matches will highlight immediately in the editor.
+3. **Replace**: Enter your replacement text. Capture groups work here (e.g., `$1`).
+4. **Flags**:
+   - `.*`: Toggle Regex mode on/off.
+   - `Aa`: Toggle Case Sensitivity.
+   - `⊏⊐`: Toggle "Selection Only" mode (active only if text is selected).
+5. Click **Replace All** to execute.
 
-### 1.2.0
-- Option to interpret `\n` in repleace field to insert line-break accordingly
-- Option to pre-fill the find-field with the selected word or phrase
-- Used regex-modifier flags are shown in the dialog
+## ⚙️ Settings
 
-### 1.3.0
-- **Live Find Preview**: Matches are now highlighted in real-time as you type, similar to native find functionality.
-- **Find in Selection**: Highlighting respects the "Selection Only" toggle, showing only matches within the selected text.
+- **Process \n**: Treat `\n` in the replace field as actual newlines.
+- **Prefill Find Field**: Auto-copy selected text to the find box when opening the dialog.
+- **Case Insensitive**: Default state for the case sensitivity toggle.
 
- 
+## 🤝 Contributing
+
+Contributions are welcome!
+
+1. Fork the project.
+2. Create your feature branch: `git checkout -b feature/AmazingFeature`.
+3. Commit your changes: `git commit -m 'Add some AmazingFeature'`.
+4. Push to the branch: `git push origin feature/AmazingFeature`.
+5. Open a Pull Request.
+
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+
+**Maintained by [HelixCraft](https://github.com/HelixCraft)**.  
+*Original plugin by Martin Eder.*
