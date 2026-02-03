@@ -2,9 +2,9 @@
 	"author": "HelixCraft",
 	"authorUrl": "https://github.com/HelixCraft",
 	"description": "Find and replace text using regular expressions with live preview.",
-	"id": "obsidian-regex-replace",
+	"id": "live-regex-replace",
 	"isDesktopOnly": false,
 	"minAppVersion": "0.12.17",
-	"name": "Regex Find/Replace",
+	"name": "Live Regex Find/Replace",
 	"version": "1.0.0"
 }

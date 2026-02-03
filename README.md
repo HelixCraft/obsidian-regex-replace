@@ -1,9 +1,9 @@
-# Obsidian Regex Find/Replace
+# Live Regex Find/Replace
 
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/HelixCraft/obsidian-regex-replace)
 ![GitHub downloads](https://img.shields.io/github/downloads/HelixCraft/obsidian-regex-replace/total)
 
-**Regex Find/Replace** is a powerful plugin for Obsidian that brings full Regular Expression (Regex) support to your find and replace operations. It features a modern **Live Preview** that highlights matches in real-time as you type, giving you visual feedback similar to native editors.
+**Live Regex Find/Replace** is a powerful plugin for Obsidian that brings full Regular Expression (Regex) support to your find and replace operations. It features a modern **Live Preview** that highlights matches in real-time as you type, giving you visual feedback similar to native editors.
 
 <img width="1496" height="531" alt="grafik" src="https://github.com/user-attachments/assets/df84a1e5-51f8-4c75-bfe7-ebaa7acb8c61" />
 
