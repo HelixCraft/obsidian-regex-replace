@@ -9,7 +9,8 @@ import {
 	PluginSettingTab,
 	Setting,
 	MarkdownView,
-	EditorPosition
+	EditorPosition,
+	Menu
 } from 'obsidian';
 import { StateEffect, StateField, Extension, RangeSetBuilder } from '@codemirror/state';
 import { EditorView, Decoration, DecorationSet } from '@codemirror/view';
@@ -24,6 +25,7 @@ interface RfrPluginSettings {
 	processLineBreak: boolean;
 	processTab: boolean;
 	prefillFind: boolean;
+	history: string[];
 }
 
 const DEFAULT_SETTINGS: RfrPluginSettings = {
@@ -34,7 +36,8 @@ const DEFAULT_SETTINGS: RfrPluginSettings = {
 	caseInsensitive: false,
 	processLineBreak: false,
 	processTab: false,
-	prefillFind: false
+	prefillFind: false,
+	history: []
 }
 
 // logThreshold: 0 ... only error messages
@@ -118,6 +121,7 @@ export default class RegexFindReplacePlugin extends Plugin {
 		this.addCommand({
 			id: 'obsidian-regex-replace',
 			name: 'Find and Replace using regular expressions',
+			hotkeys: [{ modifiers: ["Mod", "Alt"], key: "f" }],
 			editorCallback: (editor) => {
 				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (view) {
@@ -151,12 +155,12 @@ class FindAndReplaceBar {
 	app: App;
 	view: MarkdownView;
 	settings: RfrPluginSettings;
-	plugin: Plugin;
+	plugin: RegexFindReplacePlugin;
 	containerEl: HTMLElement;
 	findInput: HTMLInputElement;
 	replaceInput: HTMLInputElement;
 
-	constructor(app: App, view: MarkdownView, settings: RfrPluginSettings, plugin: Plugin) {
+	constructor(app: App, view: MarkdownView, settings: RfrPluginSettings, plugin: RegexFindReplacePlugin) {
 		this.app = app;
 		this.view = view;
 		this.settings = settings;
@@ -175,79 +179,142 @@ class FindAndReplaceBar {
 		// Create container
 		this.containerEl = document.createElement('div');
 		this.containerEl.addClass('regex-find-replace-bar');
+		
+		// ESC to close
+		this.containerEl.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape') {
+				e.preventDefault();
+				this.hide();
+			}
+		});
 
-		// Create main row
-		const mainRow = document.createElement('div');
-		mainRow.addClass('search-input-container');
+		// --- Left Column (Inputs) ---
+		const inputCol = document.createElement('div');
+		inputCol.addClass('input-col');
 
-		// Find input
-		const findWrapper = document.createElement('div');
-		findWrapper.addClass('search-input-wrapper');
+		// Row 1: Find Input + History
+		const findRow = document.createElement('div');
+		findRow.addClass('input-row');
+		
 		this.findInput = document.createElement('input');
 		this.findInput.type = 'text';
-		this.findInput.placeholder = 'Find (regex)...';
+		this.findInput.placeholder = 'Find...';
 		this.findInput.addClass('search-input');
 		
-		// Prefill find field if enabled
 		if (this.settings.prefillFind && editor.getSelection().indexOf('\n') < 0 && !noSelection) {
 			this.findInput.value = editor.getSelection();
 		} else {
 			this.findInput.value = this.settings.findText;
 		}
 
-		// Update preview on input
 		this.findInput.addEventListener('input', () => {
 			this.updatePreview();
 		});
-		
-		findWrapper.appendChild(this.findInput);
 
-		// Replace input
-		const replaceWrapper = document.createElement('div');
-		replaceWrapper.addClass('search-input-wrapper');
+		// Navigation Keybinds in Input
+		this.findInput.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter') {
+				e.preventDefault();
+				if (e.shiftKey) this.findPrevious();
+				else this.findNext();
+			} else if (e.key === 'ArrowDown') {
+				// User requested arrow keys for next/prev
+				// Only override if not using modifiers that might mean something else?
+				// Simple approach: standard arrow down goes to next match
+				e.preventDefault();
+				this.findNext();
+			} else if (e.key === 'ArrowUp') {
+				e.preventDefault();
+				this.findPrevious();
+			}
+		});
+
+		const historyBtn = document.createElement('button');
+		historyBtn.addClass('history-btn');
+		historyBtn.innerHTML = '▼';
+		historyBtn.onclick = (e) => this.showHistoryMenu(e);
+
+		findRow.appendChild(this.findInput);
+		findRow.appendChild(historyBtn);
+
+		// Row 2: Replace Input
+		const replaceRow = document.createElement('div');
+		replaceRow.addClass('input-row');
+		
 		this.replaceInput = document.createElement('input');
 		this.replaceInput.type = 'text';
 		this.replaceInput.placeholder = 'Replace...';
 		this.replaceInput.addClass('search-input');
 		this.replaceInput.value = this.settings.replaceText;
-		replaceWrapper.appendChild(this.replaceInput);
+		// Allow Enter to replace? Maybe replace All? 
+		// Standard is usually Enter does nothing or moves to next field.
+		// Let's keep it simple for now.
 
-		// Buttons container
-		const buttonsContainer = document.createElement('div');
-		buttonsContainer.addClass('search-buttons-container');
+		replaceRow.appendChild(this.replaceInput);
 
-		// Use RegEx toggle
+		inputCol.appendChild(findRow);
+		inputCol.appendChild(replaceRow);
+
+		// --- Right Column (Buttons) ---
+		const btnCol = document.createElement('div');
+		btnCol.addClass('btn-col');
+
+		// Top Row Buttons (Nav + Options + Close)
+		const topBtnRow = document.createElement('div');
+		topBtnRow.addClass('btn-row');
+
+		const prevBtn = document.createElement('button');
+		prevBtn.addClass('icon-btn');
+		prevBtn.innerHTML = '↑';
+		prevBtn.setAttribute('aria-label', 'Previous (Up Arrow)');
+		prevBtn.onclick = () => this.findPrevious();
+
+		const nextBtn = document.createElement('button');
+		nextBtn.addClass('icon-btn');
+		nextBtn.innerHTML = '↓';
+		nextBtn.setAttribute('aria-label', 'Next (Down Arrow)');
+		nextBtn.onclick = () => this.findNext();
+		
+		const closeBtn = document.createElement('button');
+		closeBtn.addClass('icon-btn');
+		closeBtn.innerHTML = '×';
+		closeBtn.setAttribute('aria-label', 'Close (Esc)');
+		closeBtn.onclick = () => this.hide();
+
+		topBtnRow.appendChild(prevBtn);
+		topBtnRow.appendChild(nextBtn);
+		topBtnRow.appendChild(closeBtn);
+
+		// Bottom Row Buttons (Toggles + Replace Action)
+		const botBtnRow = document.createElement('div');
+		botBtnRow.addClass('btn-row');
+
 		const regexToggle = document.createElement('button');
-		regexToggle.addClass('clickable-icon');
-		regexToggle.addClass('search-icon-button');
-		regexToggle.setAttribute('aria-label', 'Use Regular Expression');
+		regexToggle.addClass('icon-btn');
 		regexToggle.innerHTML = '.*';
+		regexToggle.setAttribute('aria-label', 'Use Regex');
 		if (this.settings.useRegEx) regexToggle.addClass('is-active');
 		regexToggle.onclick = () => {
 			this.settings.useRegEx = !this.settings.useRegEx;
 			regexToggle.toggleClass('is-active', this.settings.useRegEx);
 			this.updatePreview();
-		};
+		}
 
-		// Case sensitive toggle
 		const caseToggle = document.createElement('button');
-		caseToggle.addClass('clickable-icon');
-		caseToggle.addClass('search-icon-button');
-		caseToggle.setAttribute('aria-label', 'Match Case');
+		caseToggle.addClass('icon-btn');
 		caseToggle.innerHTML = 'Aa';
+		caseToggle.setAttribute('aria-label', 'Match Case');
 		if (!this.settings.caseInsensitive) caseToggle.addClass('is-active');
 		caseToggle.onclick = () => {
 			this.settings.caseInsensitive = !this.settings.caseInsensitive;
 			caseToggle.toggleClass('is-active', !this.settings.caseInsensitive);
 			this.updatePreview();
-		};
+		}
 
-		// Selection only toggle
 		const selToggle = document.createElement('button');
-		selToggle.addClass('clickable-icon');
-		selToggle.addClass('search-icon-button');
-		selToggle.setAttribute('aria-label', 'In Selection');
+		selToggle.addClass('icon-btn');
 		selToggle.innerHTML = '⊏⊐';
+		selToggle.setAttribute('aria-label', 'In Selection');
 		if (this.settings.selOnly && !noSelection) selToggle.addClass('is-active');
 		if (noSelection) selToggle.disabled = true;
 		selToggle.onclick = () => {
@@ -256,33 +323,25 @@ class FindAndReplaceBar {
 			this.updatePreview();
 		};
 
-		// Replace All button
 		const replaceAllBtn = document.createElement('button');
-		replaceAllBtn.addClass('mod-cta');
+		replaceAllBtn.addClass('text-btn');
 		replaceAllBtn.textContent = 'Replace All';
-		replaceAllBtn.onclick = () => this.replaceAll();
+		replaceAllBtn.onclick = () => { 
+			this.addToHistory(this.findInput.value);
+			this.replaceAll(); 
+		};
 
-		// Close button
-		const closeBtn = document.createElement('button');
-		closeBtn.addClass('clickable-icon');
-		closeBtn.addClass('search-icon-button');
-		closeBtn.setAttribute('aria-label', 'Close');
-		closeBtn.innerHTML = '×';
-		closeBtn.onclick = () => this.hide();
+		botBtnRow.appendChild(regexToggle);
+		botBtnRow.appendChild(caseToggle);
+		botBtnRow.appendChild(selToggle);
+		botBtnRow.appendChild(replaceAllBtn);
 
-		// Assemble buttons
-		buttonsContainer.appendChild(regexToggle);
-		buttonsContainer.appendChild(caseToggle);
-		buttonsContainer.appendChild(selToggle);
-		buttonsContainer.appendChild(replaceAllBtn);
-		buttonsContainer.appendChild(closeBtn);
+		btnCol.appendChild(topBtnRow);
+		btnCol.appendChild(botBtnRow);
 
-		// Assemble main row
-		mainRow.appendChild(findWrapper);
-		mainRow.appendChild(replaceWrapper);
-		mainRow.appendChild(buttonsContainer);
-
-		this.containerEl.appendChild(mainRow);
+		// Assemble
+		this.containerEl.appendChild(inputCol);
+		this.containerEl.appendChild(btnCol);
 
 		// Insert at top of editor
 		const contentEl = this.view.contentEl;
@@ -368,6 +427,157 @@ class FindAndReplaceBar {
 		}
 
 		cm.dispatch({ effects: setHighlightEffect.of({ query, range }) });
+	}
+
+	showHistoryMenu(event: MouseEvent) {
+		const menu = new Menu();
+		const history = this.settings.history;
+
+		if (history.length === 0) {
+			menu.addItem((item) => {
+				item.setTitle('No history').setDisabled(true);
+			});
+		} else {
+			history.forEach((term) => {
+				menu.addItem((item) => {
+					item.setTitle(term)
+						.onClick(() => {
+							this.findInput.value = term;
+							this.updatePreview();
+							this.findInput.focus();
+						});
+				});
+			});
+		}
+		
+		menu.addItem((item) => {
+			item.setTitle('Clear history')
+			.setIcon('trash')
+			.onClick(async () => {
+				this.settings.history = [];
+				await this.plugin.saveSettings();
+			});
+		});
+
+		menu.showAtMouseEvent(event);
+	}
+
+	addToHistory(term: string) {
+		if (!term || term.trim() === '') return;
+		const history = this.settings.history;
+		// Remove if exists to move to top
+		const index = history.indexOf(term);
+		if (index > -1) {
+			history.splice(index, 1);
+		}
+		history.unshift(term);
+		// Limit to 10
+		if (history.length > 10) {
+			history.pop();
+		}
+		this.settings.history = history;
+		this.plugin.saveSettings();
+	}
+
+	getSearchQuery(): SearchQuery | null {
+		const searchString = this.findInput.value;
+		if (!searchString) return null;
+		try {
+			return new SearchQuery({
+				search: searchString,
+				regexp: this.settings.useRegEx,
+				caseSensitive: !this.settings.caseInsensitive
+			});
+		} catch (e) {
+			return null;
+		}
+	}
+
+	findNext() {
+		const cm = this.getEditorView();
+		const query = this.getSearchQuery();
+		if (!cm || !query) return;
+
+		this.addToHistory(this.findInput.value);
+
+		const cursor = query.getCursor(cm.state);
+		const currentSel = cm.state.selection.main;
+		const currentPos = currentSel.to; // Search from end of current selection
+
+		let firstMatch: {from: number, to: number} | null = null;
+		let nextMatch: {from: number, to: number} | null = null;
+		
+		let item = cursor.next();
+		while (!item.done) {
+			const { from, to } = item.value;
+			if (!firstMatch) firstMatch = { from, to };
+			
+			if (from >= currentPos) {
+				nextMatch = { from, to };
+				break;
+			}
+			item = cursor.next();
+		}
+
+		// Wrap around
+		if (!nextMatch && firstMatch) {
+			nextMatch = firstMatch;
+			new Notice('Search wrapped to top');
+		}
+
+		if (nextMatch) {
+			cm.dispatch({
+				selection: { anchor: nextMatch.from, head: nextMatch.to },
+				scrollIntoView: true
+			});
+		} else {
+			new Notice('No matches found');
+		}
+	}
+
+	findPrevious() {
+		const cm = this.getEditorView();
+		const query = this.getSearchQuery();
+		if (!cm || !query) return;
+
+		this.addToHistory(this.findInput.value);
+
+		const cursor = query.getCursor(cm.state);
+		const currentSel = cm.state.selection.main;
+		const currentPos = currentSel.from; // Search backwards from start of current selection
+
+		let lastMatch: {from: number, to: number} | null = null;
+		let prevMatch: {from: number, to: number} | null = null;
+
+		let item = cursor.next();
+		while (!item.done) {
+			const { from, to } = item.value;
+			
+			if (to <= currentPos) {
+				prevMatch = { from, to };
+			} else {
+				// We passed the current position, so the previous match was the one we want
+				// unless we haven't found any match before cursor
+			}
+			
+			lastMatch = { from, to };
+			item = cursor.next();
+		}
+
+		// If no prev match found but there are matches, wrap to bottom (lastMatch)
+		if (!prevMatch && lastMatch) {
+			prevMatch = lastMatch;
+			new Notice('Search wrapped to bottom');
+		}
+
+		if (prevMatch) {
+			cm.dispatch({
+				selection: { anchor: prevMatch.from, head: prevMatch.to },
+				scrollIntoView: true
+			});
+		} else {
+			new Notice('No matches found');
+		}
 	}
 
 	replaceAll() {

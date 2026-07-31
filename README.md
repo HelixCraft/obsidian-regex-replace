@@ -7,7 +7,7 @@
 
 <img width="1496" height="531" alt="grafik" src="https://github.com/user-attachments/assets/df84a1e5-51f8-4c75-bfe7-ebaa7acb8c61" />
 
-## ✨ Features
+## Features
 
 - **Regex Support**: Utilize the full power of Javascript Regular Expressions.
 - **Live Find Preview**: Matches are highlighted instantly with a clear box style as you type your pattern or plain text.
@@ -22,7 +22,7 @@
   - **Pre-fill**: Automatically populates the find field with your selection.
   - **Theme Aware**: Seamlessly integrates with Obsidian's light and dark modes.
 
-## 🚀 Installation
+## Installation
 
 ### Via Community Plugins
 1. Open **Settings** > **Community Plugins** in Obsidian.
@@ -36,7 +36,7 @@
 3. Move the downloaded files into this folder.
 4. Reload Obsidian plugins and enable it in settings.
 
-## 🛠 Usage
+## Usage
 
 1. **Open the Dialog**:
    - Use the Command Palette (`Ctrl/Cmd + P`) and run `Regex Find/Replace: Find and Replace using regular expressions`.
@@ -58,17 +58,17 @@
 
 5. **Execute**: Click **Replace All** to apply changes.
 
-## ⚙️ Settings
+## Settings
 
 - **Process \n as line break**: Interprets `\n` characters in the replacement field as actual newlines.
 - **Prefill Find Field**: If enabled, selecting text before opening the dialog will auto-paste it into the Find box.
 - **Case Insensitive**: Sets the default state for case sensitivity.
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please fork the repository and submit a Pull Request.
 
-## 📄 License
+## License
 
 MIT License - Copyright (c) 2026 HelixCraft
 *(Original work by Martin Eder)*

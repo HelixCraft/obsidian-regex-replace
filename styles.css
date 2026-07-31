@@ -1,35 +1,39 @@
 
 .regex-find-replace-bar {
 	display: flex;
-	flex-direction: column;
+	flex-direction: row;
 	background-color: var(--background-secondary);
 	border-bottom: 1px solid var(--background-modifier-border);
-	padding: 8px 12px;
-	gap: 8px;
+	padding: 6px 10px;
+	gap: 12px;
+	align-items: flex-start;
 	z-index: 100;
 }
 
-.search-input-container {
+.input-col {
 	display: flex;
-	align-items: center;
-	gap: 8px;
-	width: 100%;
-}
-
-.search-input-wrapper {
-	display: flex;
+	flex-direction: column;
 	flex: 1;
+	gap: 6px;
 	min-width: 0;
 }
 
-.search-input {
+.input-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
 	width: 100%;
-	padding: 6px 12px;
+}
+
+.search-input {
+	flex: 1;
+	padding: 4px 8px;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 4px;
 	background-color: var(--background-primary);
 	color: var(--text-normal);
-	font-size: 14px;
+	font-size: 13px;
+	height: 26px;
 }
 
 .search-input:focus {
@@ -37,15 +41,41 @@
 	border-color: var(--interactive-accent);
 }
 
-.search-buttons-container {
+.history-btn {
+	width: 24px;
+	height: 24px;
+	min-width: 24px;
+	padding: 0;
+	background: transparent;
+	border: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.history-btn:hover {
+	color: var(--text-normal);
+}
+
+.btn-col {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.btn-row {
 	display: flex;
 	align-items: center;
 	gap: 4px;
-	flex-shrink: 0;
+	height: 26px; /* Match input height */
 }
 
-.search-icon-button {
-	padding: 4px 8px;
+.icon-btn {
+	padding: 0;
+	width: 24px;
+	height: 24px;
+	min-width: 24px;
 	border: none;
 	background: transparent;
 	cursor: pointer;
@@ -56,51 +86,48 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	min-width: 28px;
-	height: 28px;
 }
 
-.search-icon-button:hover {
+.icon-btn:hover {
 	background-color: var(--background-modifier-hover);
 	color: var(--text-normal);
 }
 
-.search-icon-button.is-active {
+.icon-btn.is-active {
 	background-color: var(--interactive-accent);
 	color: var(--text-on-accent);
 }
 
-.search-icon-button:disabled {
+.icon-btn:disabled {
 	opacity: 0.3;
 	cursor: not-allowed;
 }
 
-.mod-cta {
-	padding: 6px 12px;
+.text-btn {
+	padding: 2px 8px;
+	height: 24px;
 	background-color: var(--interactive-accent);
 	color: var(--text-on-accent);
 	border: none;
 	border-radius: 4px;
 	cursor: pointer;
-	font-size: 13px;
+	font-size: 12px;
 	font-weight: 500;
+	white-space: nowrap;
 }
 
-.mod-cta:hover {
+.text-btn:hover {
 	background-color: var(--interactive-accent-hover);
 }
 
 /* Match highlighting style */
 .rfr-match-highlight {
-	outline: 2px solid var(--interactive-accent); /* Use outline to avoid layout shifts */
-	outline-offset: -1px; /* Look inside the box */
-	background-color: hsla(250, 100%, 70%, 0.15); /* Fallback */
-	background-color: var(--text-selection); /* Use theme selection color as fallback base */
-	border-radius: 3px;
-	box-sizing: border-box;
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -1px; 
+	background-color: var(--text-selection); 
+	border-radius: 2px;
 }
 
-/* Dark mode adjustment if needed, usually handled by variables */
 .theme-dark .rfr-match-highlight {
 	background-color: rgba(var(--interactive-accent-rgb), 0.25);
 }
