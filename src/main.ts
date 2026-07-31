@@ -1,20 +1,15 @@
 import {
 	App,
-	ButtonComponent,
-	Editor,
 	Notice,
 	Plugin,
-	TextComponent,
-	ToggleComponent,
 	PluginSettingTab,
 	Setting,
 	MarkdownView,
-	EditorPosition,
 	Menu
 } from 'obsidian';
-import { StateEffect, StateField, Extension, RangeSetBuilder } from '@codemirror/state';
+import { StateEffect, StateField, RangeSetBuilder } from '@codemirror/state';
 import { EditorView, Decoration, DecorationSet } from '@codemirror/view';
-import { SearchQuery, SearchCursor } from '@codemirror/search';
+import { SearchQuery } from '@codemirror/search';
 
 interface RfrPluginSettings {
 	findText: string;
@@ -66,7 +61,7 @@ const highlightField = StateField.define<HighlightState>({
 		
 		// 1. Handle effects (new search query)
 		let hasNewQuery = false;
-		for (let e of tr.effects) {
+		for (const e of tr.effects) {
 			if (e.is(setHighlightEffect)) {
 				query = e.value.query;
 				range = e.value.range;
@@ -94,9 +89,9 @@ const highlightField = StateField.define<HighlightState>({
 						builder.add(from, to, Decoration.mark({ class: 'rfr-match-highlight' }));
 						item = cursor.next();
 					}
-				} catch (err) {
-					// console.error("Regex preview error", err);
-				}
+			} catch {
+				// console.error("Regex preview error", err);
+			}
 			}
 			decorations = builder.finish();
 		}
@@ -137,7 +132,7 @@ export default class RegexFindReplacePlugin extends Plugin {
 
 	async loadSettings() {
 		logger('Loading Settings...', 6);
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<RfrPluginSettings>);
 		logger('   findVal:         ' + this.settings.findText, 6);
 		logger('   replaceText:     ' + this.settings.replaceText, 6);
 		logger('   caseInsensitive: ' + this.settings.caseInsensitive, 6);
@@ -173,8 +168,6 @@ class FindAndReplaceBar {
 
 		const editor = this.view.editor;
 		const noSelection = editor.getSelection() === '';
-		let regexFlags = 'gm';
-		if (this.settings.caseInsensitive) regexFlags = regexFlags.concat('i');
 
 		// Create container
 		this.containerEl = document.createElement('div');
@@ -370,7 +363,7 @@ class FindAndReplaceBar {
 	
 	private getEditorView(): EditorView | null {
 		// @ts-ignore - access internal CM instance
-		return (this.view.editor as any).cm as EditorView;
+		return (this.view.editor as unknown as { cm: EditorView }).cm;
 	}
 
 	clearPreview() {
@@ -399,7 +392,7 @@ class FindAndReplaceBar {
 				regexp: this.settings.useRegEx,
 				caseSensitive: !this.settings.caseInsensitive
 			});
-		} catch (e) {
+		} catch {
 			// Invalid regex
 			query = null;
 		}
@@ -476,7 +469,7 @@ class FindAndReplaceBar {
 			history.pop();
 		}
 		this.settings.history = history;
-		this.plugin.saveSettings();
+		void this.plugin.saveSettings();
 	}
 
 	getSearchQuery(): SearchQuery | null {
@@ -488,7 +481,7 @@ class FindAndReplaceBar {
 				regexp: this.settings.useRegEx,
 				caseSensitive: !this.settings.caseInsensitive
 			});
-		} catch (e) {
+		} catch {
 			return null;
 		}
 	}
@@ -651,7 +644,7 @@ class FindAndReplaceBar {
 		// Save settings
 		this.settings.findText = searchString;
 		this.settings.replaceText = replaceString;
-		this.plugin.saveData(this.settings);
+		this.plugin.saveData(this.settings).catch(() => {});
 
 		new Notice(resultString);
 	}
@@ -669,7 +662,7 @@ class RegexFindReplaceSettingTab extends PluginSettingTab {
 		const {containerEl} = this;
 		containerEl.empty();
 
-		containerEl.createEl('h4', {text: 'Regular Expression Settings'});
+		new Setting(containerEl).setName('Regular Expression Settings').setHeading();
 
 		new Setting(containerEl)
 			.setName('Case Insensitive')
@@ -682,7 +675,7 @@ class RegexFindReplaceSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		containerEl.createEl('h4', {text: 'General Settings'});
+		new Setting(containerEl).setName('General Settings').setHeading();
 
 
 		new Setting(containerEl)
