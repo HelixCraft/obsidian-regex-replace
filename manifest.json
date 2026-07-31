@@ -5,6 +5,6 @@
 	"id": "live-regex-find-replace",
 	"isDesktopOnly": false,
 	"minAppVersion": "0.12.17",
-	"name": "Live Regex Find/Replace",
+	"name": "Live Regex Find and Replace",
 	"version": "1.0.0"
 }
