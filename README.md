@@ -1,7 +1,7 @@
 # Live Regex Find and Replace
 
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/HelixCraft/live-regex-find-replace)
-![GitHub downloads](https://img.shields.io/github/downloads/HelixCraft/live-regex-find-replace/total)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/HelixCraft/Live-Regex-Find-Replace)
+![GitHub downloads](https://img.shields.io/github/downloads/HelixCraft/Live-Regex-Find-Replace/total)
 
 **Live Regex Find and Replace** is a powerful plugin for Obsidian that brings full Regular Expression (Regex) support to your find and replace operations. It features a modern **Live Preview** that highlights matches in real-time as you type, giving you visual feedback similar to native editors.
 
@@ -31,7 +31,7 @@
 4. Click **Install** and then **Enable**.
 
 ### Manual Installation
-1. Download the latest release (`main.js`, `manifest.json`, `styles.css`) from the [Releases Page](https://github.com/HelixCraft/live-regex-find-replace/releases).
+1. Download the latest release (`main.js`, `manifest.json`, `styles.css`) from the [Releases Page](https://github.com/HelixCraft/Live-Regex-Find-Replace/releases).
 2. Create a folder named `live-regex-find-replace` in your vault's plugin folder: `.obsidian/plugins/`.
 3. Move the downloaded files into this folder.
 4. Reload Obsidian plugins and enable it in settings.
