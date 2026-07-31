@@ -39,8 +39,8 @@
 ## Usage
 
 1. **Open the Dialog**:
-   - Use the Command Palette (`Ctrl/Cmd + P`) and run `Regex Find/Replace: Find and Replace using regular expressions`.
-   - *Recommendation: Map this command to a hotkey like `Ctrl + Shift + F`.*
+   - Press the default hotkey `Ctrl + Alt + F` (`Cmd + Alt + F` on Mac).
+   - Alternatively, use the Command Palette (`Ctrl/Cmd + P`) and run `Regex Find/Replace: Find and Replace using regular expressions`.
 
 2. **Finding Text**:
    - Type your Regex or text in the "Find" box.
@@ -55,6 +55,9 @@
    - `.*` **Regex Mode**: Toggles regular expression parsing on/off.
    - `Aa` **Case Sensitivity**: Toggles case-sensitive matching.
    - `⊏⊐` **Selection Only**: Limits scope to your selected text (only available if text is selected).
+   - `▼` **History**: Shows previously searched terms (last 10, persisted between sessions).
+   - `↑` / `↓` **Previous/Next**: Jumps between matches. Same keys also work with Enter (next), Shift+Enter (previous), and the Arrow keys in the Find field.
+   - `×` **Close**: Closes the dialog (Esc works too).
 
 5. **Execute**: Click **Replace All** to apply changes.
 
