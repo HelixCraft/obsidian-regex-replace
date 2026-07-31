@@ -32,7 +32,7 @@
 
 ### Manual Installation
 1. Download the latest release (`main.js`, `manifest.json`, `styles.css`) from the [Releases Page](https://github.com/HelixCraft/obsidian-regex-replace/releases).
-2. Create a folder named `obsidian-regex-replace` in your vault's plugin folder: `.obsidian/plugins/`.
+2. Create a folder named `live-regex-find-replace` in your vault's plugin folder: `.obsidian/plugins/`.
 3. Move the downloaded files into this folder.
 4. Reload Obsidian plugins and enable it in settings.
 

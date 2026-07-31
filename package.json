@@ -1,5 +1,5 @@
 {
-	"name": "live-regex-replace",
+	"name": "live-regex-find-replace",
 	"version": "1.0.0",
 	"description": "An Obsidian plugin, which allows to replace text in the current editor using regular expressions.",
 	"main": "main.js",
