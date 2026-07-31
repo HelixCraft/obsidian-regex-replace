@@ -71,6 +71,10 @@
 
 Contributions are welcome! Please fork the repository and submit a Pull Request.
 
+## Credits
+
+This project is based on the excellent work of [Martin Eder](https://github.com/Gru80) — the original [obsidian-regex-replace](https://github.com/Gru80/obsidian-regex-replace) plugin. A big thank you for creating the foundation!
+
 ## License
 
 MIT License - Copyright (c) 2026 HelixCraft
