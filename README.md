@@ -39,8 +39,8 @@
 ## Usage
 
 1. **Open the Dialog**:
-   - Press the default hotkey `Ctrl + Alt + F` (`Cmd + Alt + F` on Mac).
-   - Alternatively, use the Command Palette (`Ctrl/Cmd + P`) and run `Regex Find/Replace: Find and Replace using regular expressions`.
+   - Assign a hotkey in **Settings → Hotkeys** (search for `Regex Find/Replace`).
+   - Or use the Command Palette (`Ctrl/Cmd + P`) and run `Regex Find/Replace: Find and Replace using regular expressions`.
 
 2. **Finding Text**:
    - Type your Regex or text in the "Find" box.

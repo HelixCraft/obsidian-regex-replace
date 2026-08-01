@@ -5,7 +5,8 @@ import {
 	PluginSettingTab,
 	Setting,
 	MarkdownView,
-	Menu
+	Menu,
+	type SettingDefinitionItem
 } from 'obsidian';
 import { StateEffect, StateField, RangeSetBuilder } from '@codemirror/state';
 import { EditorView, Decoration, DecorationSet } from '@codemirror/view';
@@ -34,13 +35,6 @@ const DEFAULT_SETTINGS: RfrPluginSettings = {
 	prefillFind: false,
 	history: []
 }
-
-// logThreshold: 0 ... only error messages
-//               9 ... verbose output
-// logThreshold: 0 ... only error messages
-//               9 ... verbose output
-const logThreshold = 9;
-const logger = (logString: string, logLevel=0): void => {if (logLevel <= logThreshold) console.log ('RegexFiRe: ' + logString)};
 
 // Define StateEffect for updating the highlight pattern with SearchQuery config
 const setHighlightEffect = StateEffect.define<{ query: SearchQuery | null, range: {from: number, to: number} | null }>();
@@ -105,7 +99,6 @@ export default class RegexFindReplacePlugin extends Plugin {
 	settings: RfrPluginSettings;
 
 	async onload() {
-		logger('Loading Plugin...', 9);
 		await this.loadSettings();
 		
 		this.registerEditorExtension(highlightField);
@@ -116,7 +109,6 @@ export default class RegexFindReplacePlugin extends Plugin {
 		this.addCommand({
 			id: 'obsidian-regex-replace',
 			name: 'Find and Replace using regular expressions',
-			hotkeys: [{ modifiers: ["Mod", "Alt"], key: "f" }],
 			editorCallback: (editor) => {
 				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (view) {
@@ -126,18 +118,10 @@ export default class RegexFindReplacePlugin extends Plugin {
 		});
 	}
 
-	onunload() {
-		logger('Bye!', 9);
-	}
+	onunload() {}
 
 	async loadSettings() {
-		logger('Loading Settings...', 6);
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<RfrPluginSettings>);
-		logger('   findVal:         ' + this.settings.findText, 6);
-		logger('   replaceText:     ' + this.settings.replaceText, 6);
-		logger('   caseInsensitive: ' + this.settings.caseInsensitive, 6);
-		logger('   processLineBreak: ' + this.settings.processLineBreak, 6);
-
 	}
 
 	async saveSettings() {
@@ -170,8 +154,7 @@ class FindAndReplaceBar {
 		const noSelection = editor.getSelection() === '';
 
 		// Create container
-		this.containerEl = document.createElement('div');
-		this.containerEl.addClass('regex-find-replace-bar');
+		this.containerEl = createDiv({ cls: 'regex-find-replace-bar' });
 		
 		// ESC to close
 		this.containerEl.addEventListener('keydown', (e) => {
@@ -182,17 +165,12 @@ class FindAndReplaceBar {
 		});
 
 		// --- Left Column (Inputs) ---
-		const inputCol = document.createElement('div');
-		inputCol.addClass('input-col');
+		const inputCol = this.containerEl.createDiv({ cls: 'input-col' });
 
 		// Row 1: Find Input + History
-		const findRow = document.createElement('div');
-		findRow.addClass('input-row');
+		const findRow = inputCol.createDiv({ cls: 'input-row' });
 		
-		this.findInput = document.createElement('input');
-		this.findInput.type = 'text';
-		this.findInput.placeholder = 'Find...';
-		this.findInput.addClass('search-input');
+		this.findInput = findRow.createEl('input', { type: 'text', placeholder: 'Find...', cls: 'search-input' });
 		
 		if (this.settings.prefillFind && editor.getSelection().indexOf('\n') < 0 && !noSelection) {
 			this.findInput.value = editor.getSelection();
@@ -222,70 +200,37 @@ class FindAndReplaceBar {
 			}
 		});
 
-		const historyBtn = document.createElement('button');
-		historyBtn.addClass('history-btn');
-		historyBtn.innerHTML = '▼';
+		const historyBtn = findRow.createEl('button', { cls: 'history-btn', text: '▼', attr: { 'aria-label': 'Search history' } });
 		historyBtn.onclick = (e) => this.showHistoryMenu(e);
 
-		findRow.appendChild(this.findInput);
-		findRow.appendChild(historyBtn);
-
 		// Row 2: Replace Input
-		const replaceRow = document.createElement('div');
-		replaceRow.addClass('input-row');
+		const replaceRow = inputCol.createDiv({ cls: 'input-row' });
 		
-		this.replaceInput = document.createElement('input');
-		this.replaceInput.type = 'text';
-		this.replaceInput.placeholder = 'Replace...';
-		this.replaceInput.addClass('search-input');
+		this.replaceInput = replaceRow.createEl('input', { type: 'text', placeholder: 'Replace...', cls: 'search-input' });
 		this.replaceInput.value = this.settings.replaceText;
 		// Allow Enter to replace? Maybe replace All? 
 		// Standard is usually Enter does nothing or moves to next field.
 		// Let's keep it simple for now.
 
-		replaceRow.appendChild(this.replaceInput);
-
-		inputCol.appendChild(findRow);
-		inputCol.appendChild(replaceRow);
-
 		// --- Right Column (Buttons) ---
-		const btnCol = document.createElement('div');
-		btnCol.addClass('btn-col');
+		const btnCol = this.containerEl.createDiv({ cls: 'btn-col' });
 
 		// Top Row Buttons (Nav + Options + Close)
-		const topBtnRow = document.createElement('div');
-		topBtnRow.addClass('btn-row');
+		const topBtnRow = btnCol.createDiv({ cls: 'btn-row' });
 
-		const prevBtn = document.createElement('button');
-		prevBtn.addClass('icon-btn');
-		prevBtn.innerHTML = '↑';
-		prevBtn.setAttribute('aria-label', 'Previous (Up Arrow)');
+		const prevBtn = topBtnRow.createEl('button', { cls: 'icon-btn', text: '↑', attr: { 'aria-label': 'Previous (Up Arrow)' } });
 		prevBtn.onclick = () => this.findPrevious();
 
-		const nextBtn = document.createElement('button');
-		nextBtn.addClass('icon-btn');
-		nextBtn.innerHTML = '↓';
-		nextBtn.setAttribute('aria-label', 'Next (Down Arrow)');
+		const nextBtn = topBtnRow.createEl('button', { cls: 'icon-btn', text: '↓', attr: { 'aria-label': 'Next (Down Arrow)' } });
 		nextBtn.onclick = () => this.findNext();
 		
-		const closeBtn = document.createElement('button');
-		closeBtn.addClass('icon-btn');
-		closeBtn.innerHTML = '×';
-		closeBtn.setAttribute('aria-label', 'Close (Esc)');
+		const closeBtn = topBtnRow.createEl('button', { cls: 'icon-btn', text: '×', attr: { 'aria-label': 'Close (Esc)' } });
 		closeBtn.onclick = () => this.hide();
 
-		topBtnRow.appendChild(prevBtn);
-		topBtnRow.appendChild(nextBtn);
-		topBtnRow.appendChild(closeBtn);
-
 		// Bottom Row Buttons (Toggles + Replace Action)
-		const botBtnRow = document.createElement('div');
-		botBtnRow.addClass('btn-row');
+		const botBtnRow = btnCol.createDiv({ cls: 'btn-row' });
 
-		const regexToggle = document.createElement('button');
-		regexToggle.addClass('icon-btn');
-		regexToggle.innerHTML = '.*';
-		regexToggle.setAttribute('aria-label', 'Use Regex');
+		const regexToggle = botBtnRow.createEl('button', { cls: 'icon-btn', text: '.*', attr: { 'aria-label': 'Use Regex' } });
 		if (this.settings.useRegEx) regexToggle.addClass('is-active');
 		regexToggle.onclick = () => {
 			this.settings.useRegEx = !this.settings.useRegEx;
@@ -293,10 +238,7 @@ class FindAndReplaceBar {
 			this.updatePreview();
 		}
 
-		const caseToggle = document.createElement('button');
-		caseToggle.addClass('icon-btn');
-		caseToggle.innerHTML = 'Aa';
-		caseToggle.setAttribute('aria-label', 'Match Case');
+		const caseToggle = botBtnRow.createEl('button', { cls: 'icon-btn', text: 'Aa', attr: { 'aria-label': 'Match Case' } });
 		if (!this.settings.caseInsensitive) caseToggle.addClass('is-active');
 		caseToggle.onclick = () => {
 			this.settings.caseInsensitive = !this.settings.caseInsensitive;
@@ -304,10 +246,7 @@ class FindAndReplaceBar {
 			this.updatePreview();
 		}
 
-		const selToggle = document.createElement('button');
-		selToggle.addClass('icon-btn');
-		selToggle.innerHTML = '⊏⊐';
-		selToggle.setAttribute('aria-label', 'In Selection');
+		const selToggle = botBtnRow.createEl('button', { cls: 'icon-btn', text: '⊏⊐', attr: { 'aria-label': 'In Selection' } });
 		if (this.settings.selOnly && !noSelection) selToggle.addClass('is-active');
 		if (noSelection) selToggle.disabled = true;
 		selToggle.onclick = () => {
@@ -316,25 +255,11 @@ class FindAndReplaceBar {
 			this.updatePreview();
 		};
 
-		const replaceAllBtn = document.createElement('button');
-		replaceAllBtn.addClass('text-btn');
-		replaceAllBtn.textContent = 'Replace All';
+		const replaceAllBtn = botBtnRow.createEl('button', { cls: 'text-btn', text: 'Replace All' });
 		replaceAllBtn.onclick = () => { 
 			this.addToHistory(this.findInput.value);
 			this.replaceAll(); 
 		};
-
-		botBtnRow.appendChild(regexToggle);
-		botBtnRow.appendChild(caseToggle);
-		botBtnRow.appendChild(selToggle);
-		botBtnRow.appendChild(replaceAllBtn);
-
-		btnCol.appendChild(topBtnRow);
-		btnCol.appendChild(botBtnRow);
-
-		// Assemble
-		this.containerEl.appendChild(inputCol);
-		this.containerEl.appendChild(btnCol);
 
 		// Insert at top of editor
 		const contentEl = this.view.contentEl;
@@ -587,13 +512,11 @@ class FindAndReplaceBar {
 
 		// Process line breaks if enabled
 		if (this.settings.processLineBreak) {
-			logger('Replacing linebreaks in replace-field', 9);
 			replaceString = replaceString.replace(/\\n/gm, '\n');
 		}
 
 		// Process tabs if enabled
 		if (this.settings.processTab) {
-			logger('Replacing tabs in replace-field', 9);
 			replaceString = replaceString.replace(/\\t/gm, '\t');
 		}
 
@@ -603,11 +526,8 @@ class FindAndReplaceBar {
 
 		// Check if regular expressions should be used
 		if (this.settings.useRegEx) {
-			logger('USING regex with flags: ' + regexFlags, 8);
-
 			const searchRegex = new RegExp(searchString, regexFlags);
 			if (!this.settings.selOnly || noSelection) {
-				logger('   SCOPE: Full document', 9);
 				const documentText = editor.getValue();
 				const rresult = documentText.match(searchRegex);
 				if (rresult) {
@@ -615,7 +535,6 @@ class FindAndReplaceBar {
 					resultString = `Made ${rresult.length} replacement(s) in document`;
 				}
 			} else {
-				logger('   SCOPE: Selection', 9);
 				const rresult = selectedText.match(searchRegex);
 				if (rresult) {
 					editor.replaceSelection(selectedText.replace(searchRegex, replaceString));
@@ -623,17 +542,14 @@ class FindAndReplaceBar {
 				}
 			}
 		} else {
-			logger('NOT using regex', 8);
 			let nrOfHits = 0;
 			if (!this.settings.selOnly || noSelection) {
-				logger('   SCOPE: Full document', 9);
 				const documentText = editor.getValue();
 				const documentSplit = documentText.split(searchString);
 				nrOfHits = documentSplit.length - 1;
 				editor.setValue(documentSplit.join(replaceString));
 				resultString = `Made ${nrOfHits} replacement(s) in document`;
 			} else {
-				logger('   SCOPE: Selection', 9);
 				const selectedSplit = selectedText.split(searchString);
 				nrOfHits = selectedSplit.length - 1;
 				editor.replaceSelection(selectedSplit.join(replaceString));
@@ -658,45 +574,62 @@ class RegexFindReplaceSettingTab extends PluginSettingTab {
 		this.plugin = plugin;
 	}
 
+	/**
+	 * Declarative settings (Obsidian 1.13.0+). Rendered and search-indexed
+	 * automatically; each control binds directly to `this.plugin.settings[key]`
+	 * and persists on change.
+	 */
+	getSettingDefinitions(): SettingDefinitionItem[] {
+		return [
+			{
+				name: 'Case Insensitive',
+				desc: "When using regular expressions, apply the '/i' modifier for case insensitive search",
+				control: { type: 'toggle', key: 'caseInsensitive' },
+			},
+			{
+				name: 'Process \\n as line break',
+				desc: "When '\\n' is used in the replace field, a 'line break' will be inserted accordingly",
+				control: { type: 'toggle', key: 'processLineBreak' },
+			},
+			{
+				name: 'Prefill Find Field',
+				desc: "Copy the currently selected text (if any) into the 'Find' text field. This setting is only applied if the selection does not contain linebreaks",
+				control: { type: 'toggle', key: 'prefillFind' },
+			},
+		];
+	}
+
+	// Fallback for Obsidian < 1.13.0, which does not call getSettingDefinitions().
 	display(): void {
 		const {containerEl} = this;
 		containerEl.empty();
 
-		new Setting(containerEl).setName('Regular Expression Settings').setHeading();
-
 		new Setting(containerEl)
 			.setName('Case Insensitive')
-			.setDesc('When using regular expressions, apply the \'/i\' modifier for case insensitive search)')
+			.setDesc("When using regular expressions, apply the '/i' modifier for case insensitive search")
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.caseInsensitive)
 				.onChange(async (value) => {
-					logger('Settings update: caseInsensitive: ' + value);
 					this.plugin.settings.caseInsensitive = value;
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl).setName('General Settings').setHeading();
-
-
 		new Setting(containerEl)
 			.setName('Process \\n as line break')
-			.setDesc('When \'\\n\' is used in the replace field, a \'line break\' will be inserted accordingly')
+			.setDesc("When '\\n' is used in the replace field, a 'line break' will be inserted accordingly")
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.processLineBreak)
 				.onChange(async (value) => {
-					logger('Settings update: processLineBreak: ' + value);
 					this.plugin.settings.processLineBreak = value;
 					await this.plugin.saveSettings();
 				}));
 
-
 		new Setting(containerEl)
 			.setName('Prefill Find Field')
-			.setDesc('Copy the currently selected text (if any) into the \'Find\' text field. This setting is only applied if the selection does not contain linebreaks')
+			.setDesc("Copy the currently selected text (if any) into the 'Find' text field. This setting is only applied if the selection does not contain linebreaks")
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.prefillFind)
 				.onChange(async (value) => {
-					logger('Settings update: prefillFind: ' + value);
 					this.plugin.settings.prefillFind = value;
 					await this.plugin.saveSettings();
 				}));
